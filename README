@@ -1,0 +1,48 @@
+This is a mirror of http://www.vim.org/scripts/script.php?script_id=2708
+
+!!NOTICE!! NO BACKWARD COMPATIBILITY FOR 1.0.2 OR BEFORE !!
+
+Description:
+  This plugin provides a set of commands and operators  to comment or
+  uncomment lines. Linewise comment token (such as double quote in vim
+  script) is detected automatically by looking up filetype of the file.
+  Filetypes working well by default:
+    vim, python, perl, ruby, haskell, sh, bash, zsh, java, javascript,
+    Makefile, tex
+  With definition in this script, these also work:
+    (c), cpp, csharp, php, matlab
+
+  You can also easily define your own comment token for filetype. Add below
+  in your .vimrc:
+    CommentopSetCommentType FILETYPE REMOVEPATTERN INSERTSTRING
+
+  plugin keymaps:
+    <Plug>CommentopToggleNV    " (n/v) toggle comment [count] or visual lines
+    <Plug>CommentopAppendNV    " (n/v) comment out [count] or visual lines
+    <Plug>CommentopRemoveNV    " (n/v) uncomment [count] or visual lines
+
+    <Plug>CommentopToggleOP    " (n op) toggle comment {motion}
+    <Plug>CommentopAppendOP    " (n op) comment out {motion}
+    <Plug>CommentopRemoveOP    " (n op) uncomment {motion}
+
+  default mapping:
+    co       <Plug>CommentopToggleNV
+    cO       <Plug>CommentopAppendNV
+    c<C-O>   <Plug>CommentopRemoveNV
+
+    go       <Plug>CommentopToggleOP
+    gO       <Plug>CommentopAppendOP
+    g<C-O>   <Plug>CommentopRemoveOP
+
+Examples:
+  in normal mode:
+     co          " toggle comment for this line
+     3cO         " comment out 3 lines
+
+  in normal mode (operator):
+     goip        " toggle comment for this paragraph
+     gOa{        " comment out this {} block
+
+  in visual mode:
+     c<C-O>      " remove comments in visual selection
+
