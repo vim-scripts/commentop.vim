@@ -3,16 +3,25 @@
 "=============================================================================
 "
 " Author:  Takahiro SUZUKI <takahiro.suzuki.ja@gmDELETEMEail.com>
-" Version: 1.0 (Vim 7.1)
+" Version: 1.0.1 (Vim 7.1)
 " Licence: MIT Licence
+" URL:     http://www.vim.org/scripts/script.php?script_id=2708
 "
 "=============================================================================
 " Document: {{{1
 "
 "-----------------------------------------------------------------------------
 " Description:
-"   This plugin provides a set of command to comment / uncomment lines.
-"   You can add defenition of token for linewise comment is depending on filetypes.
+"   This plugin provides a set of commands and operators  to comment or
+"   uncomment lines. Linewise comment token (such as double quote in vim
+"   script) is detected automatically by looking up filetype of the file.
+"   Here are the preset filetypes:
+"     vim, cpp, php, python, ruby, perl, sh, haskell, tex, matlab
+"
+"   You can also easily define your own comment token for filetype. Add below
+"   in your .vimrc:
+"     CommentopSetCommentType FILETYPE REMOVEPATTERN INSERTSTRING
+"
 "   plugin keymaps:
 "     <Plug>CommentopNormaltoggle    " (n) toggle comment [count] lines
 "     <Plug>CommentopNormalappend    " (n) comment out [count] lines
@@ -58,6 +67,8 @@
 "
 "-----------------------------------------------------------------------------
 " ChangeLog:
+"   1.0.1:
+"     - bug fix (gO was mapped to comment out operator)
 "   1.0:
 "     - Initial release
 "
@@ -128,10 +139,10 @@ function! s:Comment(mode, count)
 endfunction
 
 " comment in/out operator
-function! s:LinewiseCommentOutOperator(type)
+function! s:LinewiseCommentInOperator(type)
   call s:LinewiseCommentOperator(0, a:type)
 endfunction
-function! s:LinewiseCommentInOperator(type)
+function! s:LinewiseCommentOutOperator(type)
   call s:LinewiseCommentOperator(1, a:type)
 endfunction
 function! s:LinewiseCommentToggleOperator(type)
@@ -158,15 +169,19 @@ function! s:SetCommentType(...)
   let s:comment_types[a:1] = {'match': a:2, 'insert': a:3}
 endfunction
 
-command! -nargs=* CommentSetCommentType :call s:SetCommentType(<f-args>)
+command! -nargs=* CommentopSetCommentType :call s:SetCommentType(<f-args>)
 
 " preset comment types
-call s:SetCommentType('vim',     "^\"[ \<TAB>]\\{,1}", '" ')
-call s:SetCommentType('sh',      "^#[ \<TAB>]\\{,1}",  '# ')
-call s:SetCommentType('python',  "^#[ \<TAB>]\\{,1}",  '# ')
-call s:SetCommentType('ruby',    "^#[ \<TAB>]\\{,1}",  '# ')
-call s:SetCommentType('haskell', "^--[ \<TAB>]\\{,1}", '-- ')
-call s:SetCommentType('cpp',     "^//[ \<TAB>]\\{,1}", '// ')
+CommentopSetCommentType vim       ^\"[\ <TAB>]\\{,1}   \"\ 
+CommentopSetCommentType sh        ^#[\ <TAB>]\\{,1}    #\ 
+CommentopSetCommentType perl      ^#[\ <TAB>]\\{,1}    #\ 
+CommentopSetCommentType python    ^#[\ <TAB>]\\{,1}    #\ 
+CommentopSetCommentType ruby      ^#[\ <TAB>]\\{,1}    #\ 
+CommentopSetCommentType haskell   ^--[\ <TAB>]\\{,1}   --\ 
+CommentopSetCommentType cpp       ^//[\ <TAB>]\\{,1}   //\ 
+CommentopSetCommentType php       ^//[\ <TAB>]\\{,1}   //\ 
+CommentopSetCommentType tex       ^%[\ <TAB>]\\{,1}    %\ 
+CommentopSetCommentType matlab    ^%[\ <TAB>]\\{,1}    %\ 
 
 " default keymaps
 nmap co      <Plug>CommentopNormaltoggle
