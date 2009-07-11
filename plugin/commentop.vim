@@ -1,9 +1,9 @@
-"=============================================================================
+" =============================================================================
 " commentop.vim - commands and operators to comment/uncomment lines
 "=============================================================================
 "
 " Author:  Takahiro SUZUKI <takahiro.suzuki.ja@gmDELETEMEail.com>
-" Version: 1.0.1 (Vim 7.1)
+" Version: 1.0.2 (Vim 7.1)
 " Licence: MIT Licence
 " URL:     http://www.vim.org/scripts/script.php?script_id=2708
 "
@@ -67,6 +67,8 @@
 "
 "-----------------------------------------------------------------------------
 " ChangeLog:
+"   1.0.2:
+"     - bug fix (wrong comment string with ft=vim)
 "   1.0.1:
 "     - bug fix (gO was mapped to comment out operator)
 "   1.0:
@@ -172,7 +174,7 @@ endfunction
 command! -nargs=* CommentopSetCommentType :call s:SetCommentType(<f-args>)
 
 " preset comment types
-CommentopSetCommentType vim       ^\"[\ <TAB>]\\{,1}   \"\ 
+CommentopSetCommentType vim       ^\"[\ <TAB>]\\{,1}   "\ 
 CommentopSetCommentType sh        ^#[\ <TAB>]\\{,1}    #\ 
 CommentopSetCommentType perl      ^#[\ <TAB>]\\{,1}    #\ 
 CommentopSetCommentType python    ^#[\ <TAB>]\\{,1}    #\ 
