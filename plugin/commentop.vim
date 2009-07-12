@@ -3,7 +3,7 @@
 "=============================================================================
 "
 " Author:  Takahiro SUZUKI <takahiro.suzuki.ja@gmDELETEMEail.com>
-" Version: 1.0.2 (Vim 7.1)
+" Version: 1.1.0 (Vim 7.1)
 " Licence: MIT Licence
 " URL:     http://www.vim.org/scripts/script.php?script_id=2708
 "
@@ -15,38 +15,33 @@
 "   This plugin provides a set of commands and operators  to comment or
 "   uncomment lines. Linewise comment token (such as double quote in vim
 "   script) is detected automatically by looking up filetype of the file.
-"   Here are the preset filetypes:
-"     vim, cpp, php, python, ruby, perl, sh, haskell, tex, matlab
+"   Filetypes working well by default:
+"     vim, python, perl, ruby, haskell, sh, bash, zsh, java, javascript,
+"     Makefile, tex
+"   With definition in this script, these also work:
+"     (c), cpp, csharp, php, matlab
 "
 "   You can also easily define your own comment token for filetype. Add below
 "   in your .vimrc:
 "     CommentopSetCommentType FILETYPE REMOVEPATTERN INSERTSTRING
 "
 "   plugin keymaps:
-"     <Plug>CommentopNormaltoggle    " (n) toggle comment [count] lines
-"     <Plug>CommentopNormalappend    " (n) comment out [count] lines
-"     <Plug>CommentopNormalremove    " (n) uncomment [count] lines
-"     
-"     <Plug>CommentopVisualtoggle    " (v) toggle comment selected lines
-"     <Plug>CommentopVisualappend    " (v) comment out selected lines
-"     <Plug>CommentopVisualremove    " (v) uncomment selected lines
-"     
-"     <Plug>CommentopOperatortoggle  " (n op) toggle comment {motion}
-"     <Plug>CommentopOperatorappend  " (n op) comment out {motion}
-"     <Plug>CommentopOperatorremove  " (n op) uncomment {motion}
+"     <Plug>CommentopToggleNV    " (n/v) toggle comment [count] or visual lines
+"     <Plug>CommentopAppendNV    " (n/v) comment out [count] or visual lines
+"     <Plug>CommentopRemoveNV    " (n/v) uncomment [count] or visual lines
+"
+"     <Plug>CommentopToggleOP    " (n op) toggle comment {motion}
+"     <Plug>CommentopAppendOP    " (n op) comment out {motion}
+"     <Plug>CommentopRemoveOP    " (n op) uncomment {motion}Re
 "
 "   default mapping:
-"     co       <Plug>CommentopNormaltoggle
-"     cO       <Plug>CommentopNormalappend
-"     c<C-O>   <Plug>CommentopNormalremove
+"     co       <Plug>CommentopToggleNV
+"     cO       <Plug>CommentopAppendNV
+"     c<C-O>   <Plug>CommentopRemoveNV
 "
-"     co       <Plug>CommentopVisualtoggle
-"     cO       <Plug>CommentopVisualappend
-"     c<C-O>   <Plug>CommentopVisualremove
-"
-"     go       <Plug>CommentopOperatortoggle
-"     gO       <Plug>CommentopOperatorappend
-"     g<C-O>   <Plug>CommentopOperatorremove
+"     go       <Plug>CommentopToggleOP
+"     gO       <Plug>CommentopAppendOP
+"     g<C-O>   <Plug>CommentopRemoveOP
 "
 "-----------------------------------------------------------------------------
 " Installation:
@@ -60,19 +55,26 @@
 "
 "   in normal mode (operator):
 "      goip        " toggle comment for this paragraph
-"      gOi{        " comment out this {} block
+"      gOa{        " comment out this {} block
 "
 "   in visual mode:
 "      c<C-O>      " remove comments in visual selection
 "
 "-----------------------------------------------------------------------------
 " ChangeLog:
+"   1.1.0:
+"     - simplified <Plug> maps (no backward compatibility for 1.0.2 or before)
+"     - determine the comment string automatically (using 'commentstring')
 "   1.0.2:
 "     - bug fix (wrong comment string with ft=vim)
 "   1.0.1:
 "     - bug fix (gO was mapped to comment out operator)
 "   1.0:
 "     - Initial release
+"
+"-----------------------------------------------------------------------------
+" Special Thanks:
+"   Andy Woukla
 "
 " }}}1
 "=============================================================================
@@ -88,17 +90,6 @@ function! s:CountHeadSpace()
   return len
 endfunction
 
-" visual mode
-function! s:VisualLinewiseComment(mode)
-  let b = getpos("'<")
-  let e = getpos("'>")
-  call s:Comment(a:mode, e[1]-b[1]+1)
-endfunction
-
-" normal mode with seved count
-function! s:LinewiseComment(mode)
-  call s:Comment(a:mode, s:count1)
-endfunction
 
 "mode 0:off 1:on 2:toggle
 function! s:Comment(mode, count)
@@ -107,7 +98,15 @@ function! s:Comment(mode, count)
     let commentmatch = s:comment_types[&ft]['match']
     let commentinsertstr = s:comment_types[&ft]['insert']
   else
-    return
+    " generate it from filetype
+    let pat = split(&commentstring, '%s') " something linke '#%s'
+    if len(pat)==1
+      let commentmatch = '^' . pat[0] . "[ \<TAB>]\\{,1}"
+      let commentinsertstr = pat[0] . ' '
+      let s:comment_types[&ft] = {'match': commentmatch, 'insert': commentinsertstr}
+    else
+      return
+    endif
   endif
 
   let c = a:count
@@ -140,29 +139,29 @@ function! s:Comment(mode, count)
   call setpos('.', p)
 endfunction
 
-" comment in/out operator
-function! s:LinewiseCommentInOperator(type)
-  call s:LinewiseCommentOperator(0, a:type)
-endfunction
-function! s:LinewiseCommentOutOperator(type)
-  call s:LinewiseCommentOperator(1, a:type)
-endfunction
-function! s:LinewiseCommentToggleOperator(type)
-  call s:LinewiseCommentOperator(2, a:type)
+" normal / visual mode
+function! s:LinewiseComment(mode)
+  if exists('s:lastmode') && s:lastmode =~ "[vV\<C-V>]"
+    call s:Comment(a:mode, getpos("'>")[1]-getpos("'<")[1]+1)
+  else
+    call s:Comment(a:mode, v:count1)
+  endif
 endfunction
 
-function! s:LinewiseCommentOperator(mode, type)
-  exe 'normal! `['
-  let b = getpos('.')
-  exe 'normal! `]'
-  let e = getpos('.')
-  exe 'normal! `['
-  call s:Comment(a:mode, e[1]-b[1]+1)
+" toggle / append / remove comment operator
+function! s:SetCommentMode(mode)
+  let s:commentmode = a:mode
+endfunction
+function! s:LinewiseCommentOperator(type)
+  call s:Comment(s:commentmode, getpos("']")[1]-getpos("'[")[1]+1)
 endfunction
 
-function! s:SaveCnt()
-  let s:count1 = v:count1
+" save mode
+function! <SID>SaveMode()
+  let s:lastmode = mode()
+  return ':'
 endfunction
+noremap <expr> <SID>: <SID>SaveMode()
 
 " function and command to set the comment type from file type
 let s:comment_types = {}
@@ -171,43 +170,49 @@ function! s:SetCommentType(...)
   let s:comment_types[a:1] = {'match': a:2, 'insert': a:3}
 endfunction
 
+" We do not need this for most filetypes because v1.2.0 or later
+" determines it automatically from &comments.
+" If you want to override the default comment string, adding like these:
+"   :CommentopSetCommentType vim       ^\"[\ <TAB>]\\{,1}   "\ 
+"   :CommentopSetCommentType python    ^#[\ <TAB>]\\{,1}    #\ 
+" in your .vimrc will do.
 command! -nargs=* CommentopSetCommentType :call s:SetCommentType(<f-args>)
 
-" preset comment types
-CommentopSetCommentType vim       ^\"[\ <TAB>]\\{,1}   "\ 
-CommentopSetCommentType sh        ^#[\ <TAB>]\\{,1}    #\ 
-CommentopSetCommentType perl      ^#[\ <TAB>]\\{,1}    #\ 
-CommentopSetCommentType python    ^#[\ <TAB>]\\{,1}    #\ 
-CommentopSetCommentType ruby      ^#[\ <TAB>]\\{,1}    #\ 
-CommentopSetCommentType haskell   ^--[\ <TAB>]\\{,1}   --\ 
-CommentopSetCommentType cpp       ^//[\ <TAB>]\\{,1}   //\ 
-CommentopSetCommentType php       ^//[\ <TAB>]\\{,1}   //\ 
-CommentopSetCommentType tex       ^%[\ <TAB>]\\{,1}    %\ 
-CommentopSetCommentType matlab    ^%[\ <TAB>]\\{,1}    %\ 
+CommentopSetCommentType cpp        ^//[\ <TAB>]\\{,1}   //\ 
+CommentopSetCommentType cs         ^//[\ <TAB>]\\{,1}   //\ 
+CommentopSetCommentType matlab     ^%[\ <TAB>]\\{,1}    %\ 
+CommentopSetCommentType php        ^//[\ <TAB>]\\{,1}   //\ 
+" not correct, but for pragmatism:
+CommentopSetCommentType c          ^//[\ <TAB>]\\{,1}   //\ 
 
-" default keymaps
-nmap co      <Plug>CommentopNormaltoggle
-nmap cO      <Plug>CommentopNormalappend
-nmap c<C-O>  <Plug>CommentopNormalremove
+" default keymaps (you can override this in your .vimrc)
+if !hasmapto('<Plug>CommentopToggleNV', 'nv')
+  map  co     <Plug>CommentopToggleNV
+endif
+if !hasmapto('<Plug>CommentopAppendNV', 'nv')
+  map  cO     <Plug>CommentopAppendNV
+endif
+if !hasmapto('<Plug>CommentopRemoveNV', 'nv')
+  map  c<C-O> <Plug>CommentopRemoveNV
+endif
+if !hasmapto('<Plug>CommentopToggleOP', 'n')
+  nmap go     <Plug>CommentopToggleOP
+endif
+if !hasmapto('<Plug>CommentopAppendOP', 'n')
+  nmap gO     <Plug>CommentopAppendOP
+endif
+if !hasmapto('<Plug>CommentopRemoveOP', 'n')
+  nmap g<C-O> <Plug>CommentopRemoveOP
+endif
 
-vmap co      <Plug>CommentopVisualtoggle
-vmap cO      <Plug>CommentopVisualappend
-vmap c<C-O>  <Plug>CommentopVisualremove
+" === plugin keymaps
+" normal and visual
+noremap <script><silent> <Plug>CommentopRemoveNV <SID>:<C-U>call <SID>LinewiseComment(0)<CR>
+noremap <script><silent> <Plug>CommentopAppendNV <SID>:<C-U>call <SID>LinewiseComment(1)<CR>
+noremap <script><silent> <Plug>CommentopToggleNV <SID>:<C-U>call <SID>LinewiseComment(2)<CR>
 
-nmap go      <Plug>CommentopOperatortoggle
-nmap gO      <Plug>CommentopOperatorappend
-nmap g<C-O>  <Plug>CommentopOperatorremove
-
-" plugin keymaps
-nnoremap <silent> <Plug>CommentopNormaltoggle   :<C-U>call <SID>SaveCnt()<CR>:call <SID>LinewiseComment(2)<CR>
-nnoremap <silent> <Plug>CommentopNormalappend   :<C-U>call <SID>SaveCnt()<CR>:call <SID>LinewiseComment(1)<CR>
-nnoremap <silent> <Plug>CommentopNormalremove   :<C-U>call <SID>SaveCnt()<CR>:call <SID>LinewiseComment(0)<CR>
-
-vnoremap <silent> <Plug>CommentopVisualtoggle   :<C-U>call <SID>SaveCnt()<CR>:call <SID>VisualLinewiseComment(2)<CR>
-vnoremap <silent> <Plug>CommentopVisualappend   :<C-U>call <SID>SaveCnt()<CR>:call <SID>VisualLinewiseComment(1)<CR>
-vnoremap <silent> <Plug>CommentopVisualremove   :<C-U>call <SID>SaveCnt()<CR>:call <SID>VisualLinewiseComment(0)<CR>
-
-nnoremap <silent> <Plug>CommentopOperatortoggle :<C-U>call <SID>SaveCnt()<CR><ESC>:set opfunc=<SID>LinewiseCommentToggleOperator<CR>g@
-nnoremap <silent> <Plug>CommentopOperatorappend :<C-U>call <SID>SaveCnt()<CR><ESC>:set opfunc=<SID>LinewiseCommentOutOperator<CR>g@
-nnoremap <silent> <Plug>CommentopOperatorremove :<C-U>call <SID>SaveCnt()<CR><ESC>:set opfunc=<SID>LinewiseCommentInOperator<CR>g@
+" operator
+nnoremap <script><silent> <Plug>CommentopRemoveOP <SID>:<C-U>call <SID>SetCommentMode(0)<CR>:set opfunc=<SID>LinewiseCommentOperator<CR>g@
+nnoremap <script><silent> <Plug>CommentopAppendOP <SID>:<C-U>call <SID>SetCommentMode(1)<CR>:set opfunc=<SID>LinewiseCommentOperator<CR>g@
+nnoremap <script><silent> <Plug>CommentopToggleOP <SID>:<C-U>call <SID>SetCommentMode(2)<CR>:set opfunc=<SID>LinewiseCommentOperator<CR>g@
 
